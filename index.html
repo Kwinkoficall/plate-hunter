@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Plate Hunter</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#0f1115;--card:#1a1d24;--txt:#f2f4f8;--mut:#8b93a1;--acc:#4f8cff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px}
+.bal{font-size:22px;font-weight:800}
+.sub{color:var(--mut);font-size:12px}
+.tabs{display:flex;gap:8px;padding:0 16px 8px}
+.tab{flex:1;padding:10px;border-radius:12px;background:var(--card);text-align:center;font-weight:600;color:var(--mut);border:0;font-size:15px}
+.tab.on{background:var(--acc);color:#fff}
+main{flex:1;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;display:none;overflow-y:auto;padding:8px 16px 24px}
+.screen.on{display:flex;flex-direction:column}
+#play{align-items:center;justify-content:center;text-align:center;gap:16px}
+.hint{color:var(--mut);font-size:15px;max-width:280px;line-height:1.4}
+#stage{min-height:90px;display:flex;align-items:center;justify-content:center}
+#info{min-height:48px}
+.rlabel{font-size:22px;font-weight:800}
+.rsub{color:var(--mut);font-size:14px;margin-top:4px}
+.btn{border:0;border-radius:12px;padding:12px 18px;font-size:15px;font-weight:700;background:var(--acc);color:#fff}
+.btn.ghost{background:var(--card);color:var(--txt)}
+.btn:disabled{opacity:.45}
+.btn.sm{padding:8px 12px;font-size:13px}
+/* plate */
+.plate{display:inline-flex;align-items:stretch;background:#f7f7f2;color:#111;border:3px solid #111;border-radius:12px;overflow:hidden;font-weight:800}
+.pm{padding:6px 14px;font-size:var(--fs,34px);font-family:"Arial Narrow",Arial,sans-serif;letter-spacing:1px;white-space:nowrap;line-height:1.25}
+.pr{padding:0 10px;border-left:3px solid #111;display:flex;align-items:center;font-size:calc(var(--fs,34px)*.8);font-family:Arial,sans-serif}
+.pf{width:calc(var(--fs,34px)*1.15);border-left:3px solid #111;display:flex;align-items:flex-end;justify-content:center;font-size:10px;padding:2px 0;color:#fff;font-weight:800;font-family:Arial,sans-serif}
+.pf.kz{background:#00afca}
+.pf.ru{background:linear-gradient(#fff 33%,#0039a6 33% 66%,#d52b1e 66%)}
+.pf.by{background:linear-gradient(#c8313e 66%,#4aa657 66%)}
+.g-uncommon{box-shadow:0 0 10px var(--rc)}
+.g-rare{box-shadow:0 0 16px var(--rc)}
+.g-epic{box-shadow:0 0 24px var(--rc),0 0 6px var(--rc)}
+.g-legendary{box-shadow:0 0 30px var(--rc),0 0 8px var(--rc);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 52px var(--rc),0 0 14px var(--rc)}}
+.spin{animation:shake .12s infinite}
+@keyframes shake{0%{transform:translateX(-3px)}50%{transform:translateX(3px)}100%{transform:translateX(-3px)}}
+.pop{animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.6);opacity:.2}to{transform:scale(1);opacity:1}}
+/* collection */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{border:0;border-radius:999px;padding:7px 12px;background:var(--card);color:var(--mut);font-size:13px;font-weight:600}
+.chip.on{background:var(--acc);color:#fff}
+.item{background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.item .l{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.badge{font-size:12px;font-weight:700}
+.empty{color:var(--mut);text-align:center;margin-top:40px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#272b35;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;max-width:90%;text-align:center}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div><div class="sub">Баланс</div><div class="bal" id="bal"></div></div>
+    <div style="text-align:right"><div class="sub">Номеров</div><div class="bal" id="cnt" style="font-size:18px"></div></div>
+  </header>
+  <div class="tabs">
+    <button class="tab on" data-tab="play">Играть</button>
+    <button class="tab" data-tab="col">Коллекция</button>
+  </div>
+  <main>
+    <section id="play" class="screen on">
+      <div class="hint" id="hint">Тапай по экрану — каждый тап генерирует номер за 3 000 🪙</div>
+      <div id="stage"></div>
+      <div id="info"></div>
+      <button class="btn" id="sellLast" style="display:none"></button>
+      <button class="btn ghost" id="bonus"></button>
+    </section>
+    <section id="col" class="screen"></section>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+//#LOGIC
+const COST=3000;
+const RK=['common','uncommon','rare','epic','legendary'];
+const R={
+  common:{n:'Обычный',c:'#9aa0a6',v:500},
+  uncommon:{n:'Необычный',c:'#3fb950',v:1500},
+  rare:{n:'Редкий',c:'#3b82f6',v:5000},
+  epic:{n:'Эпический',c:'#a855f7',v:20000},
+  legendary:{n:'Легендарный',c:'#f5a524',v:80000}
+};
+const rnd=n=>Math.floor(Math.random()*n), pick=a=>a[rnd(a.length)];
+const CC={
+  kz:{name:'Казахстан',flag:'🇰🇿',code:'KZ',L:'ABCEHKMOPTXY',dn:3,ln:3,reg:Array.from({length:20},(_,i)=>String(i+1).padStart(2,'0'))},
+  ru:{name:'Россия',flag:'🇷🇺',code:'RUS',L:'АВЕКМНОРСТУХ',dn:3,ln:3,reg:['77','99','177','197','777','78','98','178','50','90','150','190','16','116','02','102','23','93','123','61','161','63','163','52','152','54','154','66','96','74','174','59','159','86','72','36','24','38','42']},
+  by:{name:'Беларусь',flag:'🇧🇾',code:'BY',L:'ABEIKMHOPCTX',dn:4,ln:2,reg:['1','2','3','4','5','6','7']}
+};
+const LEG={3:['777','888','999','001','007','555'],4:['7777','8888','9999','0001','0007','5555']};
+
+function rollR(){const x=rnd(100);return x<60?'common':x<85?'uncommon':x<95?'rare':x<99?'epic':'legendary'}
+
+function rate(d,l){
+  const A=[...d],same=A.every(x=>x===A[0]),leg=LEG[d.length].includes(d),ls=[...l].every(x=>x===l[0]);
+  const seq=A.every((x,i)=>i===0||+x===+A[i-1]+1)||A.every((x,i)=>i===0||+x===+A[i-1]-1);
+  const pal=d===A.slice().reverse().join(''),round=/^[1-9]0+$/.test(d),pair=/(\d)\1/.test(d);
+  if(leg&&ls)return'legendary';
+  if(same||leg)return'epic';
+  if(seq||pal||ls)return'rare';
+  if(round||pair)return'uncommon';
+  return'common';
+}
+
+function build(cc,r){
+  const C=CC[cc],n=C.dn;let best;
+  const rd=()=>Array.from({length:n},()=>rnd(10)).join('');
+  const rl=same=>{
+    if(same)return pick([...C.L]).repeat(C.ln);
+    let s;do s=Array.from({length:C.ln},()=>pick([...C.L])).join('');while([...s].every(x=>x===s[0]));
+    return s;
+  };
+  for(let t=0;t<300;t++){
+    let d,l;
+    if(r==='legendary'){d=pick(LEG[n]);l=rl(true)}
+    else if(r==='epic'){d=Math.random()<.6?String(rnd(10)).repeat(n):pick(LEG[n]);l=rl(false)}
+    else if(r==='rare'){
+      const k=rnd(3);
+      if(k===0){
+        const s=rnd(11-n);
+        d=Array.from({length:n},(_,i)=>s+i).join('');
+        if(Math.random()<.5)d=[...d].reverse().join('');
+        l=rl(false);
+      }else if(k===1){
+        let a,b;do{a=rnd(10);b=rnd(10)}while(a===b);
+        d=n===3?`${a}${b}${a}`:`${a}${b}${b}${a}`;l=rl(false);
+      }else{d=rd();l=rl(true)}
+    }
+    else if(r==='uncommon'){
+      if(Math.random()<.5)d=(1+rnd(9))+'0'.repeat(n-1);
+      else{do d=rd();while(!/(\d)\1/.test(d))}
+      l=rl(false);
+    }
+    else{d=rd();l=rl(false)}
+    best={d,l};
+    if(rate(d,l)===r)break;
+  }
+  return{cc,d:best.d,l:best.l,reg:pick(C.reg),r:rate(best.d,best.l)};
+}
+//#END
+
+/* ---------- Telegram ---------- */
+const tg=window.Telegram&&window.Telegram.WebApp;
+try{tg&&tg.ready();tg&&tg.expand();tg&&tg.setHeaderColor&&tg.setHeaderColor('#0f1115');tg&&tg.setBackgroundColor&&tg.setBackgroundColor('#0f1115')}catch(e){}
+const hap=t=>{try{t==='h'?tg.HapticFeedback.impactOccurred('heavy'):t==='l'?tg.HapticFeedback.impactOccurred('light'):tg.HapticFeedback.notificationOccurred(t)}catch(e){}};
+
+/* ---------- State ---------- */
+const KEY='plate_hunter_v1',BONUS=15000,CD=24*3600e3;
+let S={coins:30000,plates:[],gen:0,bonusAt:0,last:null};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString('ru-RU');
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2200)}
+
+/* ---------- Render ---------- */
+function plateHTML(p,extra=''){
+  const C=CC[p.cc],fs=p.cc==='by'?30:34;
+  let main,reg='';
+  if(p.cc==='ru'){main=p.l[0]+p.d+p.l.slice(1);reg=p.reg}
+  else if(p.cc==='kz'){main=p.d+' '+p.l;reg=p.reg}
+  else main=p.d+' '+p.l+'-'+p.reg;
+  return `<div class="plate g-${p.r} ${extra}" style="--fs:${fs}px;--rc:${R[p.r].c}"><div class="pm">${main}</div>${reg?`<div class="pr">${reg}</div>`:''}<div class="pf ${p.cc}">${C.code}</div></div>`;
+}
+function renderTop(){$('bal').textContent=fmt(S.coins)+' 🪙';$('cnt').textContent=fmt(S.plates.length)}
+function renderBonus(){
+  const left=S.bonusAt+CD-Date.now(),b=$('bonus');
+  if(left<=0){b.textContent='🎁 Ежедневный бонус +'+fmt(BONUS);b.disabled=false}
+  else{b.textContent='Бонус через '+Math.floor(left/36e5)+'ч '+Math.floor(left%36e5/6e4)+'м';b.disabled=true}
+}
+
+/* ---------- Game ---------- */
+let busy=false;
+function spin(){
+  if(busy)return;
+  if(S.coins<COST){toast('Не хватает монет. Продай номера или забери бонус');hap('error');return}
+  busy=true;S.coins-=COST;S.gen++;S.last=null;
+  const cc=pick(Object.keys(CC)),p=Object.assign(build(cc,rollR()),{id:Date.now()+'-'+rnd(1e6),t:Date.now()});
+  hap('l');
+  $('hint').style.display='none';$('sellLast').style.display='none';$('info').innerHTML='';
+  renderTop();
+  let k=0;
+  const iv=setInterval(()=>{
+    const f=build(pick(Object.keys(CC)),'common');
+    $('stage').innerHTML=plateHTML(f,'spin');
+    if(++k>=11){clearInterval(iv);reveal(p)}
+  },70);
+}
+function reveal(p){
+  S.plates.unshift(p);S.last=p.id;save();
+  $('stage').innerHTML=plateHTML(p,'pop');
+  $('info').innerHTML=`<div class="rlabel" style="color:${R[p.r].c}">${R[p.r].n}</div><div class="rsub">${CC[p.cc].flag} ${CC[p.cc].name} · стоимость ${fmt(R[p.r].v)} 🪙</div>`;
+  const b=$('sellLast');b.textContent='Продать за '+fmt(R[p.r].v)+' 🪙';b.style.display='';
+  hap(p.r==='legendary'||p.r==='epic'?'success':'l');
+  if(p.r==='legendary')hap('h');
+  renderTop();busy=false;
+}
+function sell(id){
+  const i=S.plates.findIndex(p=>p.id===id);if(i<0)return;
+  S.coins+=R[S.plates[i].r].v;S.plates.splice(i,1);
+  if(S.last===id){S.last=null;$('sellLast').style.display='none'}
+  save();renderTop();renderCol();hap('l');
+}
+
+/* ---------- Collection ---------- */
+let F={c:'all',r:'all'};
+function renderCol(){
+  const all=S.plates;
+  const list=all.filter(p=>(F.c==='all'||p.cc===F.c)&&(F.r==='all'||p.r===F.r))
+    .sort((a,b)=>RK.indexOf(b.r)-RK.indexOf(a.r)||b.t-a.t);
+  const cChips=[['all','Все']].concat(Object.keys(CC).map(k=>[k,CC[k].flag]))
+    .map(([k,t])=>`<button class="chip ${F.c===k?'on':''}" data-f="c:${k}">${t}</button>`).join('');
+  const rChips=[['all','Все']].concat(RK.map(k=>[k,R[k].n]))
+    .map(([k,t])=>`<button class="chip ${F.r===k?'on':''}" data-f="r:${k}">${t}${k!=='all'?' '+all.filter(p=>p.r===k).length:''}</button>`).join('');
+  const commons=all.filter(p=>p.r==='common');
+  const bulk=commons.length?`<button class="btn ghost sm" data-bulk="1" style="margin-bottom:10px">Продать все обычные (${commons.length}) за ${fmt(commons.length*R.common.v)} 🪙</button>`:'';
+  const items=list.slice(0,80).map(p=>`<div class="item"><div class="l">${plateHTML(p)}<span class="badge" style="color:${R[p.r].c}">${R[p.r].n} · ${CC[p.cc].flag}</span></div><button class="btn sm" data-sell="${p.id}">${fmt(R[p.r].v)} 🪙</button></div>`).join('');
+  $('col').innerHTML=`<div class="chips">${cChips}</div><div class="chips">${rChips}</div>${bulk}`+
+    (items||'<div class="empty">Пока пусто — иди тапать 👆</div>')+
+    (list.length>80?`<div class="empty" style="margin-top:8px">Показаны первые 80 из ${list.length}</div>`:'');
+}
+
+/* ---------- Events ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===t.dataset.tab));
+  if(t.dataset.tab==='col')renderCol();
+});
+$('play').addEventListener('pointerdown',e=>{if(!e.target.closest('button'))spin()});
+$('sellLast').onclick=()=>S.last&&sell(S.last);
+$('bonus').onclick=()=>{
+  if(S.bonusAt+CD>Date.now())return;
+  S.bonusAt=Date.now();S.coins+=BONUS;save();renderTop();renderBonus();hap('success');toast('+'+fmt(BONUS)+' 🪙');
+};
+$('col').addEventListener('click',e=>{
+  const f=e.target.closest('[data-f]'),s=e.target.closest('[data-sell]'),b=e.target.closest('[data-bulk]');
+  if(f){const[k,v]=f.dataset.f.split(':');F[k]=v;renderCol()}
+  else if(s)sell(s.dataset.sell);
+  else if(b){const c=S.plates.filter(p=>p.r==='common');S.coins+=c.length*R.common.v;S.plates=S.plates.filter(p=>p.r!=='common');if(c.some(p=>p.id===S.last)){S.last=null;$('sellLast').style.display='none'}save();renderTop();renderCol();hap('success')}
+});
+
+renderTop();renderBonus();setInterval(renderBonus,30000);
+</script>
+</body>
+</html>
