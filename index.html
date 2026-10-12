@@ -180,6 +180,22 @@ button{font-family:inherit;color:inherit}
 .stb{border-radius:20px;padding:14px;margin:6px 0 16px;background:linear-gradient(135deg,var(--rb),rgba(24,25,29,.95) 80%)}
 .stb .sub{margin-bottom:10px}
 
+#gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;gap:14px}
+#gate.on{display:flex}
+#gate .gi{font-size:56px}
+#gate h2{margin:0;font-size:24px}
+#gate p{margin:0;color:var(--mut);font-size:15px;line-height:1.45;max-width:320px}
+#gate .btn{width:100%;max-width:320px}
+#gate .spin{width:34px;height:34px;border:4px solid #33363e;border-top-color:#c4c9d4;border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.trow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--p2);margin-bottom:8px;border:1px solid transparent}
+.trow.me{border-color:#c4c9d4}
+.trk{width:34px;font-weight:800;font-size:17px;color:var(--mut);text-align:center;flex:none}
+.trow:nth-child(-n+3) .trk{font-size:22px}
+.tnm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.tvl{font-weight:700;white-space:nowrap;font-size:15px}
+.topme{flex:none;padding:10px 16px calc(14px + env(safe-area-inset-bottom));text-align:center;color:var(--mut);font-size:14px}
+.topme b{color:var(--txt)}
 #toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#2c2e35;padding:11px 18px;border-radius:14px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;max-width:88%;text-align:center;z-index:30}
 #toast.show{opacity:1}
 </style>
@@ -202,6 +218,7 @@ button{font-family:inherit;color:inherit}
     <div class="tile big" data-go="gen"><div class="art" id="a-gen"></div><div class="tl">Генератор</div></div>
     <div class="tile wide bonus" id="t-bonus"><div class="art" id="a-bonus"></div><div class="tl">Ежедневный бонус</div></div>
     <div class="tile wide upg" data-go="up"><div class="art"><span>⬆️</span><div><b>Улучшения</b><small>Больше места в инвентаре и сейфе</small></div></div><div class="tl">Улучшения</div></div>
+    <div class="tile wide upg" data-go="top" id="t-top"><div class="art"><span>🏆</span><div><b>Таблица лидеров</b><small>Богатейшие игроки и коллекции</small></div></div><div class="tl">Лидеры</div></div>
     <div class="grid">
       <div class="tile" data-go="col"><div class="art" id="a-col"></div><div class="tl">Коллекция</div></div>
       <div class="tile" data-go="safe"><div class="art" id="a-safe"></div><div class="tl">Сейф</div></div>
@@ -260,6 +277,14 @@ button{font-family:inherit;color:inherit}
   <div class="scroll" id="uplist"></div>
 </section>
 
+<!-- LEADERS -->
+<section id="s-top" class="scr">
+  <div class="hd"><button class="back" data-back></button><div class="ttl">Лидеры</div></div>
+  <div class="chips" id="top-tabs"></div>
+  <div class="list" id="top-list"></div>
+  <div class="topme" id="top-me"></div>
+</section>
+
 <!-- CATALOG -->
 <section id="s-cat" class="scr">
   <div class="hd"><button class="back" data-back></button><div class="ttl">Каталог редкостей</div></div>
@@ -280,6 +305,7 @@ button{font-family:inherit;color:inherit}
 </div></div>
 <div class="sheet dlg" id="dlg"><div class="sbox"><div class="sh">Подтверди продажу</div><div id="dlg-t" style="color:#c9cddb;line-height:1.45"></div>
   <div style="display:flex;gap:10px;margin-top:18px"><button class="btn g" id="dlg-no" style="flex:1;margin:0">Отмена</button><button class="btn" id="dlg-yes" style="flex:1;margin:0">Продать</button></div></div></div>
+<div id="gate"></div>
 <div id="toast"></div>
 
 <script>
@@ -502,6 +528,27 @@ function closeAsk(ok){
   $('dlg').classList.remove('on');const f=askCb;askCb=null;if(ok&&f)f();
 }
 
+/* ---------- Подписка на канал ---------- */
+// Заполни два значения ниже. Пока WORKER_URL пустой, проверка выключена и игра открывается без неё.
+const CHANNEL='@AvtoNAmerok';            // username канала
+const WORKER_URL='https://royal-grass-794eavtonamerok.kwink483.workers.dev';                       // адрес Cloudflare Worker, например https://avtonamerok.имя.workers.dev
+function gateShow(html){const g=$('gate');g.innerHTML=html;g.classList.add('on')}
+async function checkSub(){
+  if(!WORKER_URL)return;
+  gateShow('<div class="spin"></div><p>Проверяем подписку…</p>');
+  if(!tg||!tg.initData){gateShow('<div class="gi">📱</div><h2>Открой игру в Telegram</h2><p>Игра работает только внутри Telegram через бота.</p>');return}
+  try{
+    const r=await fetch(WORKER_URL+'/check',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData:tg.initData})});
+    const j=await r.json();
+    if(j.ok){$('gate').classList.remove('on');$('gate').innerHTML='';return}
+    gateShow(`<div class="gi">🔒</div><h2>Подпишись на канал</h2><p>Чтобы играть, нужно подписаться на наш канал. После подписки нажми «Я подписался».</p><button class="btn" id="g-sub">Подписаться на канал</button><button class="btn g" id="g-chk">Я подписался</button>`);
+    $('g-sub').onclick=()=>{const u='https://t.me/'+CHANNEL.replace('@','');try{tg.openTelegramLink(u)}catch(e){window.open(u,'_blank')}};
+    $('g-chk').onclick=checkSub;
+  }catch(e){
+    gateShow('<div class="gi">⚠️</div><h2>Не удалось проверить</h2><p>Проверь интернет и попробуй ещё раз.</p><button class="btn" id="g-chk">Повторить</button>');
+    $('g-chk').onclick=checkSub;
+  }
+}
 /* ---------- State ---------- */
 const KEY='plate_hunter_v2',BONUS=60000,CD=24*3600e3;
 let S={coins:30000,plates:[],bonusAt:0,sel:'any',types:{},st:{gen:0,spent:0,earned:0,best:null},last:null,up:{inv:0,safe:0},pv:0};
@@ -574,9 +621,9 @@ const dashes=r=>`<div class="dash">${RK.map((k,i)=>`<i style="${i<=ridx(r)?'back
 const flagCls=c=>'fl f-'+c;
 
 /* ---------- Navigation ---------- */
-const SCR=['menu','gen','country','col','safe','up','cat','stats'];
+const SCR=['menu','gen','country','col','safe','up','cat','stats','top'];
 let stack=['menu'];
-const renderers={menu:renderMenu,gen:renderGen,country:renderCountry,col:()=>renderList('col'),safe:()=>renderList('safe'),up:renderUp,cat:renderCatalog,stats:renderStats};
+const renderers={menu:renderMenu,gen:renderGen,country:renderCountry,col:()=>renderList('col'),safe:()=>renderList('safe'),up:renderUp,cat:renderCatalog,stats:renderStats,top:renderLeaders};
 function show(id){
   SCR.forEach(s=>$('s-'+s).classList.toggle('on',s===id));
   renderTop();renderers[id]&&renderers[id]();
@@ -845,6 +892,43 @@ function renderStats(){
     row('Открыто типов номеров',`${Object.keys(S.types).length} / ${TOTAL_TYPES}`);
 }
 
+/* ---------- Таблица лидеров ---------- */
+const HAS_LB=()=>!!WORKER_URL&&!!tg&&!!tg.initData;
+const invVal=()=>S.plates.reduce((a,p)=>a+p.v,0);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path,body){const r=await fetch(WORKER_URL+path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({initData:tg.initData},body))});return r.json()}
+let lastSent='';
+function syncScore(force){
+  if(!HAS_LB())return Promise.resolve();
+  const k=Math.round(S.coins)+'|'+Math.round(invVal());
+  if(!force&&k===lastSent)return Promise.resolve();
+  lastSent=k;
+  return api('/score',{coins:S.coins,inv:invVal()}).catch(()=>{lastSent=''});
+}
+setInterval(()=>syncScore(),30000);
+setTimeout(()=>syncScore(),4000);
+addEventListener('visibilitychange',()=>{if(document.hidden)syncScore()});
+let topBy='coins',topTok=0;
+const MEDAL=['🥇','🥈','🥉'];
+async function renderLeaders(){
+  $('top-tabs').innerHTML=[['coins','По деньгам'],['inv','По стоимости номеров']].map(([k,n])=>`<button class="chip${topBy===k?' on':''}" data-by="${k}">${n}</button>`).join('');
+  const L=$('top-list'),M=$('top-me');
+  if(!HAS_LB()){L.innerHTML='<div class="empty">Таблица лидеров доступна внутри Telegram.</div>';M.textContent='';return}
+  const tok=++topTok;
+  L.innerHTML='<div class="empty">Загружаем…</div>';M.textContent='';
+  try{
+    await syncScore(true);
+    const d=await api('/top',{by:topBy});
+    if(tok!==topTok)return;
+    if(!d.ok)throw 0;
+    const val=r=>money(topBy==='coins'?r.coins:r.inv);
+    L.innerHTML=d.top.length?d.top.map((r,i)=>`<div class="trow${r.me?' me':''}"><div class="trk">${i<3?MEDAL[i]:i+1}</div><div class="tnm">${esc(r.name)}${r.me?' (ты)':''}</div><div class="tvl">${val(r)}</div></div>`).join(''):'<div class="empty">Пока никого нет. Стань первым!</div>';
+    M.innerHTML=d.me?`Твоё место: <b>${fmt(d.me.rank)}</b> · ${val(d.me)}`:'';
+  }catch(e){if(tok===topTok){L.innerHTML='<div class="empty">Не удалось загрузить таблицу. Попробуй позже.</div>'}}
+}
+$('top-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-by]');if(!b)return;topBy=b.dataset.by;renderLeaders()});
+if(!HAS_LB())$('t-top').style.display='none';
+
 /* ---------- Events ---------- */
 $('dlg-yes').onclick=()=>closeAsk(true);
 $('dlg-no').onclick=()=>closeAsk(false);
@@ -859,7 +943,7 @@ document.addEventListener('click',e=>{
 });
 setInterval(()=>{if($('s-menu').classList.contains('on'))renderMenu()},30000);
 
-initArt();renderTop();renderMenu();
+initArt();renderTop();renderMenu();checkSub();
 try{tg.BackButton.hide()}catch(e){}
 </script>
 </body>
