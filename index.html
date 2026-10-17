@@ -279,6 +279,8 @@ html,body{background:#0d0e10 radial-gradient(ellipse at 50% -10%,#1d1f24 0%,#0d0
 .adl{margin:12px 0 4px}
 .adprev{padding:8px 0 2px}.adprev svg{width:100%;height:auto;display:block}
 .adb{display:flex;gap:8px;margin:8px 0 4px}.adb .btn{flex:1;padding:12px 8px;font-size:14px}
+.stg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 12px}
+.stc{border-radius:16px;background:#1b1c20;border:1px solid #2a2c33;padding:14px}.stc b{display:block;font-size:26px;color:var(--txt)}.stc span{font-size:12.5px;color:var(--mut)}
 .adsr{display:flex;gap:8px;margin-bottom:10px}.adsr .ain{margin:0;flex:1}
 #adm-body .chip{padding:10px 14px;font-size:14px}
 </style>
@@ -1374,7 +1376,7 @@ function applyCmd(c){
 }
 let inboxBusy=false;
 async function pollInbox(){
-  if(!HAS_LB()||frozen||!cloudOK||inboxBusy)return;
+  if(!HAS_LB()||frozen||!cloudOK||inboxBusy||document.hidden)return;
   inboxBusy=true;
   try{
     const d=await api('/inbox',{});
@@ -1393,6 +1395,24 @@ async function pollInbox(){
   inboxBusy=false;
 }
 setInterval(pollInbox,45000);
+
+// ---- статистика: онлайн и регистрации ----
+let ST_D=null,ST_T=0;
+async function loadStats(){
+  const tok=++ST_T;
+  try{const d=await api('/adm/stats',{});if(tok!==ST_T)return;ST_D=d.ok?d:{error:1}}catch(e){ST_D={error:1}}
+  if(AD.tab==='st'&&stack[stack.length-1]==='adm'){const b=$('adm-body'),sc=b.scrollTop;b.innerHTML=admStats();b.scrollTop=sc}
+}
+setInterval(()=>{if(ADM&&AD.tab==='st'&&stack[stack.length-1]==='adm'&&!document.hidden)loadStats()},15000);
+function admStats(){
+  const d=ST_D;
+  if(!d)return '<div class="empty" style="margin-top:20px">Загружаем…</div>';
+  if(d.error)return '<div class="empty" style="margin-top:20px">Не удалось загрузить статистику</div>';
+  const card=(n,t,c)=>`<div class="stc"><b${c?` style="color:${c}"`:''}>${fmt(n)}</b><span>${t}</span></div>`;
+  return `<div class="stg">${card(d.online,'🟢 Сейчас онлайн','#3ddc84')}${card(d.total,'👥 Всего игроков')}${card(d.h1,'За последний час')}${card(d.d1,'За сутки')}${card(d.newToday,'Новых за сутки')}${card(d.bot,'Запустили бота')}</div>
+  <div class="hint" style="text-align:left">Онлайн — игроки, у которых игра открыта и на экране прямо сейчас (обновляется каждые 15 секунд). «Всего игроков» — те, кто открыл игру и сохранил прогресс. Отключили бота или заблокировали: ${fmt(d.muted)}.</div>
+  <div class="sech">Сейчас играют</div>`+(d.onlineList.length?d.onlineList.map(p=>`<div class="tkr" data-pid="${p.id}" style="cursor:pointer"><div class="d"><b>${(p.name||'Игрок').replace(/</g,'&lt;')}</b><br><span>ID ${p.id} · ${fmt(p.gen||0)} ген.</span></div></div>`).join(''):'<div class="hint">Сейчас никого нет</div>');
+}
 addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(pollInbox,500)});
 
 // ---- очередь «видео»: номер выпадает через N генераций и не попадает в инвентарь ----
@@ -1406,7 +1426,7 @@ function admDue(){
   return hit;
 }
 
-const AD={tab:'video',ev:{cc:'ru',d:'888',l:'ВВВ',reg:'888',v:'323323323',r:'auto',after:'50'},eg:{cc:'ru',d:'777',l:'ААА',reg:'77',v:'5000000',r:'auto'},
+const AD={tab:'st',ev:{cc:'ru',d:'888',l:'ВВВ',reg:'888',v:'323323323',r:'auto',after:'50'},eg:{cc:'ru',d:'777',l:'ААА',reg:'77',v:'5000000',r:'auto'},
   q:'',list:null,pid:null,pdata:null,ploc:'safe',psel:null,slk:'inv',gloc:'inv'};
 const L2R={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'},R2L={};Object.keys(L2R).forEach(k=>R2L[L2R[k]]=k);
 const EDEF={ru:{d:'888',l:'ВВВ',reg:'888'},kz:{d:'777',l:'KKK',reg:'02'},by:{d:'7777',l:'BB',reg:'7'}};
@@ -1502,9 +1522,10 @@ function admPlayer(){
 function renderAdmin(){
   const b=$('adm-body');if(!b)return;
   if(!ADM){$('adm-tabs').innerHTML='';b.innerHTML='<div class="empty">Нет доступа</div>';return}
-  $('adm-tabs').innerHTML=[['video','🎬 Видео'],['pl','👥 Игроки']].map(([k,n])=>`<button class="chip${AD.tab===k?' on':''}" data-at="${k}">${n}</button>`).join('');
+  $('adm-tabs').innerHTML=[['st','📊 Онлайн'],['video','🎬 Видео'],['pl','👥 Игроки']].map(([k,n])=>`<button class="chip${AD.tab===k?' on':''}" data-at="${k}">${n}</button>`).join('');
   const sc=b.scrollTop;
-  if(AD.tab==='video'){b.innerHTML=admVideo();edPrev('ev')}
+  if(AD.tab==='st'){b.innerHTML=admStats();loadStats()}
+  else if(AD.tab==='video'){b.innerHTML=admVideo();edPrev('ev')}
   else if(AD.pid){b.innerHTML=admPlayer();if(AD.pdata&&!AD.pdata.error)edPrev('eg')}
   else{b.innerHTML=admList();if(AD.list===null)loadPlayers()}
   b.scrollTop=sc;
@@ -1552,7 +1573,7 @@ $('s-adm').addEventListener('click',async e=>{
     AD.psel=null;renderAdmin();return;
   }
   if(x=c('[data-plt]')){AD.psel=AD.psel===x.dataset.plt?null:x.dataset.plt;renderAdmin();return}
-  if(x=c('[data-pid]')){openPlayer(+x.dataset.pid);return}
+  if(x=c('[data-pid]')){AD.tab='pl';openPlayer(+x.dataset.pid);return}
   if(x=c('[data-act]')){
     const a=x.dataset.act;
     if(a==='m+'||a==='m-'||a==='m='){const v=digitsOf('ad-money');if(!v&&a!=='m='){toast('Укажи сумму');return}await admSend([{t:'coins',op:a==='m='?'set':'add',v:a==='m-'?-v:v}]);return}
