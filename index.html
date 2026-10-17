@@ -270,6 +270,17 @@ html,body{background:#0d0e10 radial-gradient(ellipse at 50% -10%,#1d1f24 0%,#0d0
 .tkr .btn{padding:9px 13px;font-size:13px;flex:none}
 .luckc{border-radius:20px;padding:16px;margin:6px 0 4px;background:linear-gradient(135deg,#17361f,#17181b 80%);border:1px solid #2b5a38;line-height:1.45}
 .luckc b{color:#3ddc84}
+.ain{width:100%;box-sizing:border-box;padding:12px 13px;border-radius:12px;border:1px solid #2a2c33;background:#1b1c20;color:var(--txt);font-size:15px;margin-top:5px;font-family:inherit}
+.ain:focus{outline:0;border-color:#f2b52a}
+.adcard{padding:12px;border-radius:16px;background:#141518;border:1px solid #2a2c33;margin-bottom:10px}
+.adc{padding:0 0 10px!important}
+.adg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.adcard label,.adl,#adm-body label{display:block;font-size:12.5px;color:var(--mut)}
+.adl{margin:12px 0 4px}
+.adprev{padding:8px 0 2px}.adprev svg{width:100%;height:auto;display:block}
+.adb{display:flex;gap:8px;margin:8px 0 4px}.adb .btn{flex:1;padding:12px 8px;font-size:14px}
+.adsr{display:flex;gap:8px;margin-bottom:10px}.adsr .ain{margin:0;flex:1}
+#adm-body .chip{padding:10px 14px;font-size:14px}
 </style>
 </head>
 <body>
@@ -324,6 +335,7 @@ html,body{background:#0d0e10 radial-gradient(ellipse at 50% -10%,#1d1f24 0%,#0d0
     <div class="tile wide upg" data-go="up"><div class="art"><span>⬆️</span><div><b>Улучшения</b><small>Больше места в инвентаре и сейфе</small></div></div><div class="tl">Улучшения</div></div>
     <div class="tile wide upg" data-go="daily"><div class="art"><span>🎁</span><div><b>Награды и задания</b><small>Серия входов, задания дня, удача ×3</small></div></div><div class="tl">Награды</div><span class="badge" id="b-day" style="display:none">!</span></div>
     <div class="tile wide upg" data-go="friends" id="t-fr"><div class="art"><span>👥</span><div><b>Пригласи друзей</b><small>Деньги тебе и другу за каждого</small></div></div><div class="tl">Друзья</div><span class="badge" id="b-fr" style="display:none">!</span></div>
+    <div class="tile wide upg" data-go="adm" id="t-adm" style="display:none"><div class="art"><span>🛠️</span><div><b>Админ-панель</b><small>Выдача, видео-номера, игроки</small></div></div><div class="tl">Админ</div></div>
     <div class="tile wide upg" data-go="top" id="t-top"><div class="art"><span>🏆</span><div><b>Таблица лидеров</b><small>Богатейшие игроки и коллекции</small></div></div><div class="tl">Лидеры</div></div>
     <div class="grid">
       <div class="tile" data-go="col"><div class="art" id="a-col"></div><div class="tl">Коллекция</div></div>
@@ -353,6 +365,12 @@ html,body{background:#0d0e10 radial-gradient(ellipse at 50% -10%,#1d1f24 0%,#0d0
 <section id="s-lvl" class="scr">
   <div class="hd"><button class="back" data-back></button><div class="ttl">Уровень</div><div class="hr"><div class="bal balv"></div></div></div>
   <div class="scroll" id="lvl-body"></div>
+</section>
+<!-- ADMIN -->
+<section id="s-adm" class="scr">
+  <div class="hd"><button class="back" data-back></button><div class="ttl">Админка</div><div class="hr"><div class="bal balv"></div></div></div>
+  <div class="chips" id="adm-tabs"></div>
+  <div class="scroll" id="adm-body"></div>
 </section>
 <div id="lvup"></div>
 
@@ -787,7 +805,7 @@ async function checkSub(){
 }
 /* ---------- State ---------- */
 const KEY='plate_hunter_v2',BONUS=60000,CD=24*3600e3;
-let S={coins:30000,plates:[],bonusAt:0,sel:'any',types:{},st:{gen:0,spent:0,earned:0,best:null},last:null,up:{inv:0,safe:0,shelf:0},pv:0,shelfAt:0,shelfBank:0,orders:[],ordAt:0,atlas:{},atlasR:{},xp:null,lvR:1,rev:0,lk:0,dl:{last:'',n:0},dt:null,refM:{}};
+let S={coins:30000,plates:[],bonusAt:0,sel:'any',types:{},st:{gen:0,spent:0,earned:0,best:null},last:null,up:{inv:0,safe:0,shelf:0},pv:0,shelfAt:0,shelfBank:0,orders:[],ordAt:0,atlas:{},atlasR:{},xp:null,lvR:1,rev:0,lk:0,dl:{last:'',n:0},dt:null,refM:{},bx:{inv:0,safe:0,shelf:0},adm:{q:[]},ai:[]};
 try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d)S=Object.assign(S,d)}catch(e){}
 let saveT;
 let cloudDirty=false,frozen=false;
@@ -795,6 +813,7 @@ const save=()=>{if(frozen)return;S.rev=(S.rev||0)+1;cloudDirty=true;try{localSto
 const saveSoon=()=>{clearTimeout(saveT);saveT=setTimeout(save,250)};
 // миграция сохранений: жёлтые номера удалены из игры — возвращаем за них деньги
 (function(){
+  S.bx=Object.assign({inv:0,safe:0,shelf:0},S.bx||{});S.adm=S.adm||{q:[]};if(!Array.isArray(S.adm.q))S.adm.q=[];S.ai=S.ai||[];
   S.up=Object.assign({inv:0,safe:0,shelf:0},S.up||{});S.atlas=S.atlas||{};S.atlasR=S.atlasR||{};S.orders=S.orders||[];
   S.up.shelf=Math.max(0,Math.min(SHELF_CAPS.length-1,S.up.shelf|0));
   S.up.inv=Math.max(0,Math.min(INV_CAPS.length-1,S.up.inv|0));S.up.safe=Math.max(0,Math.min(SAFE_CAPS.length-1,S.up.safe|0));
@@ -809,7 +828,7 @@ const saveSoon=()=>{clearTimeout(saveT);saveT=setTimeout(save,250)};
   if(S.last&&!S.plates.some(p=>p.id===S.last))S.last=null;
   if(S.st.best&&!TYPES[S.st.best.tp])S.st.best=S.plates.slice().sort((a,b)=>b.v-a.v)[0]||null;
 })();
-const invCap=()=>INV_CAPS[S.up.inv]+lvBonus().inv,safeCap=()=>SAFE_CAPS[S.up.safe]+lvBonus().safe,shelfCap=()=>SHELF_CAPS[S.up.shelf];
+const invCap=()=>INV_CAPS[S.up.inv]+lvBonus().inv+(S.bx.inv|0),safeCap=()=>SAFE_CAPS[S.up.safe]+lvBonus().safe+(S.bx.safe|0),shelfCap=()=>SHELF_CAPS[S.up.shelf]+(S.bx.shelf|0);
 const isInv=p=>!p.safe&&!p.shelf;
 S.plates.forEach(p=>{S.atlas[p.cc+':'+p.reg]=1});
 addEventListener('visibilitychange',()=>{if(document.hidden)save()});
@@ -959,9 +978,9 @@ const dashes=r=>`<div class="dash">${RK.map((k,i)=>`<i style="${i<=ridx(r)?'back
 const flagCls=c=>'fl f-'+c;
 
 /* ---------- Navigation ---------- */
-const SCR=['menu','gen','country','col','safe','up','cat','stats','top','orders','shelf','smelt','atlas','lvl','daily','friends'];
+const SCR=['menu','gen','country','col','safe','up','cat','stats','top','orders','shelf','smelt','atlas','lvl','daily','friends','adm'];
 let stack=['menu'];
-const renderers={menu:renderMenu,gen:renderGen,country:renderCountry,col:()=>renderList('col'),safe:()=>renderList('safe'),up:renderUp,cat:renderCatalog,stats:renderStats,top:renderLeaders,orders:renderOrders,shelf:renderShelf,smelt:renderSmelt,atlas:renderAtlas,lvl:renderLvl,daily:renderDaily,friends:renderFriends};
+const renderers={menu:renderMenu,gen:renderGen,country:renderCountry,col:()=>renderList('col'),safe:()=>renderList('safe'),up:renderUp,cat:renderCatalog,stats:renderStats,top:renderLeaders,orders:renderOrders,shelf:renderShelf,smelt:renderSmelt,atlas:renderAtlas,lvl:renderLvl,daily:renderDaily,friends:renderFriends,adm:renderAdmin};
 function show(id){
   SCR.forEach(s=>$('s-'+s).classList.toggle('on',s===id));
   renderTop();renderers[id]&&renderers[id]();
@@ -1051,6 +1070,12 @@ function gen(){
   if(S.plates.filter(isInv).length>=invCap()){toast('Инвентарь заполнен — продай номера или улучши инвентарь');hap('error');return}
   if(S.coins<COST){toast('Не хватает на генерацию. Продай номера или забери бонус');hap('error');return}
   S.coins-=COST;S.st.spent+=COST;S.st.gen++;
+  const vd=admDue();
+  if(vd){ // номер для видео: показывается как обычная выдача, но в инвентарь не попадает
+    const fp=Object.assign({},vd,{id:'v'+Date.now().toString(36),t:Date.now()}),lk=(S.lk||0)>0;
+    S.last=null;luckGen(lk);saveSoon();renderTop();showResult(fp);$('acts').style.visibility='hidden';
+    hapQ(ridx(fp.r)>=4?'success':ridx(fp.r)>=3?'h':'l');return;
+  }
   const cc=S.sel==='any'?pick(['kz','ru','by']):S.sel,tp=pickType(cc);
   const lucky=(S.lk||0)>0;
   const p=build(tp,rollR(lucky));p.v=priceOf(p);p.id=Date.now().toString(36)+rnd(1e6).toString(36);p.t=Date.now();
@@ -1294,7 +1319,7 @@ async function cloudLoad(force){
     }
     cloudOK=true;
     if(!d.data||d.rev<(S.rev||0))cloudDirty=true;
-    cloudPush();
+    cloudPush();adminInit();pollInbox();
   }catch(e){}
 }
 async function cloudPush(force){
@@ -1310,6 +1335,232 @@ async function cloudPush(force){
 setInterval(()=>cloudPush(),15000);
 addEventListener('visibilitychange',()=>{if(document.hidden){try{save()}catch(e){}cloudPush()}});
 addEventListener('pagehide',()=>cloudPush());
+
+/* ---------- Админ-панель ---------- */
+let ADM=false;
+function adminInit(){
+  if(!HAS_LB())return;
+  api('/info',{}).then(i=>{if(i&&i.ok&&i.admin){ADM=true;const t=$('t-adm');if(t)t.style.display=''}}).catch(()=>{});
+}
+function plateText(p){
+  const l=p.l||'';
+  if(p.cc==='ru')return l[0]+p.d+l.slice(1)+' '+p.reg;
+  if(p.cc==='by')return p.d+' '+l+'-'+p.reg;
+  return p.d+' '+l+' '+p.reg;
+}
+// команды от админа: применяются у игрока
+function applyCmd(c){
+  const kn={inv:'инвентарь',safe:'сейф',shelf:'витрина'};
+  const find=id=>S.plates.find(p=>p.id===id);
+  switch(c.t){
+    case 'coins':
+      if(c.op==='set'){S.coins=Math.max(0,c.v);return 'баланс '+money(S.coins)}
+      S.coins=Math.max(0,S.coins+c.v);return (c.v>=0?'+':'−')+money(Math.abs(c.v));
+    case 'slots':
+      S.bx=Object.assign({inv:0,safe:0,shelf:0},S.bx||{});S.bx[c.k]=Math.max(0,(S.bx[c.k]||0)+c.n);
+      return (c.n>=0?'+':'−')+Math.abs(c.n)+' ячеек: '+kn[c.k];
+    case 'xp': addXP(c.n);return '+'+fmt(c.n)+' опыта';
+    case 'give':{
+      const p=Object.assign({},c.plate);p.id=Date.now().toString(36)+rnd(1e6).toString(36);p.t=Date.now();
+      if(c.loc==='safe')p.safe=1;else if(c.loc==='shelf'){shelfFix();p.shelf=1}
+      S.plates.unshift(p);S.atlas[p.cc+':'+p.reg]=1;S.types[p.tp]=1;
+      return 'номер '+plateText(p);
+    }
+    case 'del':{const i=S.plates.findIndex(p=>p.id===c.id);if(i<0)return '';if(S.plates[i].shelf)shelfFix();S.plates.splice(i,1);if(S.last===c.id)S.last=null;return 'номер убран'}
+    case 'move':{const p=find(c.id);if(!p)return '';shelfFix();delete p.safe;delete p.shelf;if(c.loc==='safe')p.safe=1;else if(c.loc==='shelf')p.shelf=1;return 'номер перемещён: '+kn[c.loc]}
+    case 'price':{const p=find(c.id);if(!p)return '';if(p.shelf)shelfFix();p.v=c.v;return 'новая цена номера'}
+  }
+  return '';
+}
+let inboxBusy=false;
+async function pollInbox(){
+  if(!HAS_LB()||frozen||!cloudOK||inboxBusy)return;
+  inboxBusy=true;
+  try{
+    const d=await api('/inbox',{});
+    if(d.ok&&d.cmds&&d.cmds.length){
+      S.ai=S.ai||[];const msgs=[],ids=[];
+      d.cmds.forEach(x=>{ids.push(x.id);if(S.ai.includes(x.id))return;S.ai.push(x.id);try{const m=applyCmd(x.c);if(m)msgs.push(m)}catch(e){}});
+      S.ai=S.ai.slice(-300);
+      save();renderTop();
+      const cur=stack[stack.length-1];
+      if(cur!=='gen'&&cur!=='adm'&&renderers[cur])try{renderers[cur]()}catch(e){}
+      if(msgs.length)notify('🎁 От администратора',msgs.join(' · '));
+      sfx('coin');cloudPush(true);
+      await api('/inbox',{ack:ids}).catch(()=>{});
+    }
+  }catch(e){}
+  inboxBusy=false;
+}
+setInterval(pollInbox,45000);
+addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(pollInbox,500)});
+
+// ---- очередь «видео»: номер выпадает через N генераций и не попадает в инвентарь ----
+function admDue(){
+  const q=S.adm&&S.adm.q;if(!q||!q.length)return null;
+  let hit=null;
+  for(let i=0;i<q.length;i++){
+    if(q[i].left<=0&&!hit){hit=q[i].plate;q.splice(i,1);i--}
+    else if(q[i].left>0)q[i].left--;
+  }
+  return hit;
+}
+
+const AD={tab:'video',ev:{cc:'ru',d:'888',l:'ВВВ',reg:'888',v:'323323323',r:'auto',after:'50'},eg:{cc:'ru',d:'777',l:'ААА',reg:'77',v:'5000000',r:'auto'},
+  q:'',list:null,pid:null,pdata:null,ploc:'safe',psel:null,slk:'inv',gloc:'inv'};
+const L2R={A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'},R2L={};Object.keys(L2R).forEach(k=>R2L[L2R[k]]=k);
+const EDEF={ru:{d:'888',l:'ВВВ',reg:'888'},kz:{d:'777',l:'KKK',reg:'02'},by:{d:'7777',l:'BB',reg:'7'}};
+function edPlate(e){
+  const T=TYPES[e.cc+'_civ'],set=CC[e.cc].L;
+  let l=String(e.l||'').toUpperCase();
+  l=[...l].map(c=>e.cc==='ru'?(L2R[c]||c):(R2L[c]||c)).filter(c=>set.includes(c)).join('');
+  const d=String(e.d||'').replace(/\D/g,''),reg=String(e.reg||'').replace(/\D/g,''),v=Math.round(+String(e.v||'').replace(/\D/g,''))||0;
+  const rl={ru:[2,3],kz:[2,2],by:[1,1]}[e.cc];
+  let err='';
+  if(d.length!==T.dn)err=`Цифр должно быть ${T.dn}`;
+  else if(l.length!==T.ln)err=`Букв должно быть ${T.ln}, допустимы: ${set}`;
+  else if(reg.length<rl[0]||reg.length>rl[1])err=`Код региона: ${rl[0]===rl[1]?rl[0]:rl[0]+'–'+rl[1]} цифры`;
+  else if(!v)err='Укажи цену';
+  let r=e.r;if(r==='auto'){r='common';RK.forEach(k=>{if(v>=R[k].lo)r=k})}
+  return{p:{tp:e.cc+'_civ',cc:e.cc,d,l,reg,r,v},err};
+}
+function edHTML(k){
+  const e=AD[k];
+  return `<div class="adcard">
+  <div class="chips adc">${['ru','kz','by'].map(c=>`<button class="chip${e.cc===c?' on':''}" data-ec="${k}" data-v="${c}">${CC[c].name}</button>`).join('')}</div>
+  <div class="adg">
+    <label>Цифры<input class="ain" inputmode="numeric" data-e="${k}" data-f="d" value="${e.d}"></label>
+    <label>Буквы<input class="ain" autocapitalize="characters" data-e="${k}" data-f="l" value="${e.l}"></label>
+    <label>Регион<input class="ain" inputmode="numeric" data-e="${k}" data-f="reg" value="${e.reg}"></label>
+  </div>
+  <label>Цена, ₽<input class="ain" inputmode="numeric" data-e="${k}" data-f="v" value="${e.v}"></label>
+  <div class="chips adc" style="padding-top:10px">${['auto',...RK].map(r=>`<button class="chip${e.r===r?' on':''}" data-er="${k}" data-v="${r}">${r==='auto'?'Редкость: авто':R[r].n}</button>`).join('')}</div>
+  <div id="adp-${k}" class="adp"></div></div>`;
+}
+function edPrev(k){
+  const el=$('adp-'+k);if(!el)return;
+  const{p,err}=edPlate(AD[k]);
+  el.innerHTML=err?`<div class="hint">${err}</div>`:`<div class="adprev">${plateSVG(p)}</div><div class="hint">${R[p.r].n} · ${money(p.v)}</div>`;
+}
+function admVideo(){
+  const q=(S.adm&&S.adm.q)||[];
+  return `<div class="hint" style="text-align:left">Создай номер и укажи, через сколько генераций он выпадет. Он появится как обычная выдача, но в инвентарь не попадёт и исчезнет. Сейчас сделано генераций: <b>${fmt(S.st.gen||0)}</b></div>
+  ${edHTML('ev')}
+  <label class="adl">Выпадет после N генераций<input class="ain" inputmode="numeric" data-e="ev" data-f="after" value="${AD.ev.after}"></label>
+  <div class="hint" style="text-align:left">Например, 50: первые 50 генераций обычные, на 51-й выпадет этот номер. 0 — на следующей.</div>
+  <button class="btn" id="adv-add" style="width:100%">Добавить в очередь</button>
+  <div class="sech">Очередь (${q.length})</div>`+
+  (q.length?q.map((x,i)=>`<div class="tkr"><div class="d"><b>${plateText(x.plate)}</b><br><span>${money(x.plate.v)} · ${R[x.plate.r].n} · ${x.left>0?'через '+x.left+' ген.':'на следующей генерации'}</span></div><button class="btn g" data-adq="${i}">✕</button></div>`).join(''):'<div class="hint">Очередь пуста</div>');
+}
+const ago=t=>{if(!t)return '—';const m=Math.round((Date.now()-t)/6e4);return m<1?'только что':m<60?m+' мин назад':m<1440?Math.round(m/60)+' ч назад':Math.round(m/1440)+' дн. назад'};
+function admList(){
+  return `<div class="adsr"><input class="ain" id="adq" placeholder="Имя или ID игрока" value="${AD.q.replace(/"/g,'&quot;')}"><button class="btn" id="ad-find">Найти</button></div>
+  <button class="btn g" id="ad-me" style="width:100%;margin-bottom:6px">Это я</button>
+  <div id="ad-plist">${AD.list===null?'<div class="empty" style="margin-top:20px">Загружаем…</div>':AD.list.length?AD.list.map(p=>`<div class="tkr" data-pid="${p.id}" style="cursor:pointer"><div class="d"><b>${(p.name||'Игрок').replace(/</g,'&lt;')}</b><br><span>ID ${p.id} · ${money(p.coins||0)} · ${fmt(p.gen||0)} ген. · ${ago(p.updated)}</span></div></div>`).join(''):'<div class="empty" style="margin-top:20px">Никого не нашли</div>'}</div>`;
+}
+async function loadPlayers(){
+  AD.list=null;
+  try{const d=await api('/adm/players',{q:AD.q});AD.list=d.ok?d.players:[]}catch(e){AD.list=[]}
+  if(AD.tab==='pl'&&!AD.pid&&stack[stack.length-1]==='adm'){const b=$('ad-plist');if(b){const x=document.createElement('div');x.innerHTML=admList();b.innerHTML=x.querySelector('#ad-plist').innerHTML}}
+}
+async function openPlayer(id){
+  AD.pid=id;AD.psel=null;AD.pdata=null;renderAdmin();
+  try{const d=await api('/adm/player',{id});if(AD.pid!==id)return;AD.pdata=d.ok?d:{error:1}}catch(e){AD.pdata={error:1}}
+  renderAdmin();
+}
+function admPlayer(){
+  const d=AD.pdata;
+  const head=`<div class="chips" style="padding:0 0 10px"><button class="chip" id="ad-bk">← К списку</button></div>`;
+  if(!d)return head+'<div class="empty" style="margin-top:20px">Загружаем…</div>';
+  if(d.error)return head+'<div class="empty" style="margin-top:20px">Не удалось загрузить игрока</div>';
+  const s=d.save,pl=d.player,pls=s?s.plates:[],cnt={safe:0,inv:0,shelf:0};pls.forEach(p=>cnt[p.loc]++);
+  const bx=Object.assign({inv:0,safe:0,shelf:0},s&&s.bx||{});
+  const list=pls.filter(p=>p.loc===AD.ploc).sort((a,b)=>b.v-a.v).slice(0,60);
+  return head+`<div class="luckc" style="background:#17181b;border-color:#2a2c33"><b style="color:var(--txt)">${(pl.name||'Игрок').replace(/</g,'&lt;')}</b> · ID ${pl.id}<br>
+  Баланс: <b style="color:var(--txt)">${money(s?s.coins:(pl.coins||0))}</b> · Ур. ${s?s.lvR:'—'} · ${fmt(s?s.gen:(pl.gen||0))} ген.<br>
+  Доп. ячейки: инв ${bx.inv} · сейф ${bx.safe} · витрина ${bx.shelf}<br>
+  <span style="color:var(--mut);font-size:12.5px">${s?'Сохранение: '+ago(d.savedAt):'Сохранения ещё нет'}${d.pending?` · ждут применения: ${d.pending}`:''}</span></div>
+  <div class="sech">Деньги</div>
+  <input class="ain" id="ad-money" inputmode="numeric" placeholder="Сумма, ₽">
+  <div class="adb"><button class="btn" data-act="m+">Выдать</button><button class="btn g" data-act="m-">Забрать</button><button class="btn g" data-act="m=">Установить</button></div>
+  <div class="sech">Ячейки</div>
+  <div class="chips adc">${[['inv','Инвентарь'],['safe','Сейф'],['shelf','Витрина']].map(([k,n])=>`<button class="chip${AD.slk===k?' on':''}" data-sk="${k}">${n}</button>`).join('')}</div>
+  <input class="ain" id="ad-slot" inputmode="numeric" placeholder="Сколько ячеек добавить (можно с минусом)">
+  <div class="adb"><button class="btn" data-act="slots">Применить</button></div>
+  <div class="sech">Опыт</div>
+  <input class="ain" id="ad-xp" inputmode="numeric" placeholder="Сколько опыта выдать">
+  <div class="adb"><button class="btn" data-act="xp">Выдать опыт</button></div>
+  <div class="sech">Выдать номер</div>
+  ${edHTML('eg')}
+  <div class="chips adc" style="padding-top:10px">${[['inv','В инвентарь'],['safe','В сейф'],['shelf','На витрину']].map(([k,n])=>`<button class="chip${AD.gloc===k?' on':''}" data-gl="${k}">${n}</button>`).join('')}</div>
+  <div class="adb"><button class="btn" data-act="give">Выдать номер</button></div>
+  <div class="sech">Номера игрока</div>
+  <div class="chips adc">${[['safe','Сейф'],['inv','Инвентарь'],['shelf','Витрина']].map(([k,n])=>`<button class="chip${AD.ploc===k?' on':''}" data-pl="${k}">${n} · ${cnt[k]}</button>`).join('')}</div>
+  ${s?(list.length?list.map(p=>`<div class="tkr" data-plt="${p.id}" style="cursor:pointer;flex-wrap:wrap"><div class="d"><b>${plateText(p)}</b><br><span style="color:${R[p.r]?R[p.r].c:'#999'}">${R[p.r]?R[p.r].n:p.r}</span> <span>· ${money(p.v)}</span></div>${AD.psel===p.id?`<div style="width:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn g" data-mv="safe">В сейф</button><button class="btn g" data-mv="inv">В инвентарь</button><button class="btn g" data-mv="shelf">На витрину</button><button class="btn g" data-mv="del" style="color:#ff6b6b">Удалить</button><input class="ain" id="ad-price" inputmode="numeric" placeholder="Новая цена" style="flex:1;min-width:110px"><button class="btn" data-mv="price">Цена</button></div>`:''}</div>`).join('')+(cnt[AD.ploc]>60?`<div class="hint">Показаны 60 самых дорогих из ${cnt[AD.ploc]}</div>`:''):'<div class="hint">Здесь пусто</div>'):'<div class="hint">Данные появятся после первого сохранения игрока</div>'}
+  <div class="hint" style="margin-top:10px">Изменения применяются у игрока, когда он открывает игру (или в течение минуты, если игра уже открыта).</div>`;
+}
+function renderAdmin(){
+  const b=$('adm-body');if(!b)return;
+  if(!ADM){$('adm-tabs').innerHTML='';b.innerHTML='<div class="empty">Нет доступа</div>';return}
+  $('adm-tabs').innerHTML=[['video','🎬 Видео'],['pl','👥 Игроки']].map(([k,n])=>`<button class="chip${AD.tab===k?' on':''}" data-at="${k}">${n}</button>`).join('');
+  const sc=b.scrollTop;
+  if(AD.tab==='video'){b.innerHTML=admVideo();edPrev('ev')}
+  else if(AD.pid){b.innerHTML=admPlayer();if(AD.pdata&&!AD.pdata.error)edPrev('eg')}
+  else{b.innerHTML=admList();if(AD.list===null)loadPlayers()}
+  b.scrollTop=sc;
+}
+async function admSend(cmds){
+  try{
+    const d=await api('/adm/cmd',{target:AD.pid,cmds});
+    if(!d.ok){toast('Ошибка: проверь данные');return false}
+    toast('Отправлено ✓');hap('success');
+    if(AD.pid===(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.id)){setTimeout(pollInbox,700)}
+    setTimeout(()=>{if(AD.pid&&stack[stack.length-1]==='adm')openPlayer(AD.pid)},2500);
+    return true;
+  }catch(e){toast('Нет связи с сервером');return false}
+}
+const digitsOf=id=>Math.round(+String(($(id)||{}).value||'').replace(/\D/g,''))||0;
+$('adm-body').addEventListener('input',e=>{
+  const el=e.target.closest('[data-e]');if(!el)return;
+  AD[el.dataset.e][el.dataset.f]=el.value;edPrev(el.dataset.e);
+});
+$('adm-body').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='adq'){AD.q=e.target.value.trim();loadPlayers();renderAdmin()}});
+$('s-adm').addEventListener('click',async e=>{
+  if(!ADM)return;
+  const t=e.target,c=s=>t.closest(s);
+  let x;
+  if(x=c('[data-at]')){AD.tab=x.dataset.at;renderAdmin();return}
+  if(x=c('[data-ec]')){const k=x.dataset.ec,e2=AD[k];e2.cc=x.dataset.v;if(edPlate(e2).err)Object.assign(e2,EDEF[e2.cc]);renderAdmin();return}
+  if(x=c('[data-er]')){AD[x.dataset.er].r=x.dataset.v;renderAdmin();return}
+  if(x=c('[data-adq]')){S.adm.q.splice(+x.dataset.adq,1);save();renderAdmin();return}
+  if(c('#adv-add')){
+    const{p,err}=edPlate(AD.ev);if(err){toast(err);return}
+    const after=Math.max(0,Math.round(+String(AD.ev.after).replace(/\D/g,''))||0);
+    S.adm=S.adm||{q:[]};S.adm.q.push({plate:p,left:after});save();hap('success');toast('Добавлено в очередь');renderAdmin();return;
+  }
+  if(c('#ad-find')){AD.q=($('adq').value||'').trim();AD.list=null;renderAdmin();return}
+  if(c('#ad-me')){const u=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user;if(u)openPlayer(u.id);return}
+  if(c('#ad-bk')){AD.pid=null;AD.pdata=null;AD.list=null;renderAdmin();return}
+  if(x=c('[data-sk]')){AD.slk=x.dataset.sk;const v=($('ad-slot')||{}).value;renderAdmin();if($('ad-slot'))$('ad-slot').value=v||'';return}
+  if(x=c('[data-gl]')){AD.gloc=x.dataset.gl;renderAdmin();return}
+  if(x=c('[data-pl]')){AD.ploc=x.dataset.pl;AD.psel=null;renderAdmin();return}
+  if(x=c('[data-mv]')){
+    const id=AD.psel;if(!id)return;const a=x.dataset.mv;
+    if(a==='del'){if(await admSend([{t:'del',id}]))AD.pdata.save.plates=AD.pdata.save.plates.filter(p=>p.id!==id)}
+    else if(a==='price'){const v=digitsOf('ad-price');if(!v){toast('Укажи цену');return}if(await admSend([{t:'price',id,v}])){const p=AD.pdata.save.plates.find(p=>p.id===id);if(p)p.v=v}}
+    else if(await admSend([{t:'move',id,loc:a}])){const p=AD.pdata.save.plates.find(p=>p.id===id);if(p){p.loc=a;AD.ploc=a}}
+    AD.psel=null;renderAdmin();return;
+  }
+  if(x=c('[data-plt]')){AD.psel=AD.psel===x.dataset.plt?null:x.dataset.plt;renderAdmin();return}
+  if(x=c('[data-pid]')){openPlayer(+x.dataset.pid);return}
+  if(x=c('[data-act]')){
+    const a=x.dataset.act;
+    if(a==='m+'||a==='m-'||a==='m='){const v=digitsOf('ad-money');if(!v&&a!=='m='){toast('Укажи сумму');return}await admSend([{t:'coins',op:a==='m='?'set':'add',v:a==='m-'?-v:v}]);return}
+    if(a==='slots'){const raw=String(($('ad-slot')||{}).value||'').trim(),n=Math.round(+raw.replace(/[^\d-]/g,''))||0;if(!n){toast('Укажи число ячеек');return}await admSend([{t:'slots',k:AD.slk,n}]);return}
+    if(a==='xp'){const n=digitsOf('ad-xp');if(!n){toast('Укажи опыт');return}await admSend([{t:'xp',n}]);return}
+    if(a==='give'){const{p,err}=edPlate(AD.eg);if(err){toast(err);return}await admSend([{t:'give',plate:p,loc:AD.gloc}]);return}
+  }
+});
 
 let topBy='coins',topTok=0;
 const MEDAL=['🥇','🥈','🥉'];
