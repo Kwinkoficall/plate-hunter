@@ -982,7 +982,7 @@ const flagCls=c=>'fl f-'+c;
 /* ---------- Navigation ---------- */
 const SCR=['menu','gen','country','col','safe','up','cat','stats','top','orders','shelf','smelt','atlas','lvl','daily','friends','adm'];
 let stack=['menu'];
-const renderers={menu:renderMenu,gen:renderGen,country:renderCountry,col:()=>renderList('col'),safe:()=>renderList('safe'),up:renderUp,cat:renderCatalog,stats:renderStats,top:renderLeaders,orders:renderOrders,shelf:renderShelf,smelt:renderSmelt,atlas:renderAtlas,lvl:renderLvl,daily:renderDaily,friends:renderFriends,adm:renderAdmin};
+const renderers={menu:renderMenu,gen:renderGen,country:renderCountry,col:()=>renderList('col'),safe:()=>renderList('safe'),up:renderUp,cat:renderCatalog,stats:renderStats,top:renderLeaders,orders:renderOrders,shelf:renderShelf,smelt:renderSmelt,atlas:renderAtlas,lvl:renderLvl,daily:renderDaily,friends:renderFriends,adm:()=>{adminInit();renderAdmin()}};
 function show(id){
   SCR.forEach(s=>$('s-'+s).classList.toggle('on',s===id));
   renderTop();renderers[id]&&renderers[id]();
@@ -1342,7 +1342,56 @@ addEventListener('pagehide',()=>cloudPush());
 let ADM=false;
 function adminInit(){
   if(!HAS_LB())return;
-  api('/info',{}).then(i=>{if(i&&i.ok&&i.admin){ADM=true;const t=$('t-adm');if(t)t.style.display=''}}).catch(()=>{});
+  api('/info',{}).then(i=>{
+    ADM=i&&i.ok&&i.admin?i.admin:false;
+    const t=$('t-adm');if(t)t.style.display=ADM?'':'none';
+    if(stack[stack.length-1]==='adm')renderAdmin();
+  }).catch(()=>{});
+}
+const can=k=>!!(ADM&&ADM.perms&&ADM.perms[k]),isOwnerA=()=>!!(ADM&&ADM.owner);
+function admTabs(){
+  const t=[];
+  if(can('stats'))t.push(['st','📊 Онлайн']);
+  if(can('video'))t.push(['video','🎬 Видео']);
+  if(can('give')||can('take'))t.push(['pl','👥 Игроки']);
+  if(isOwnerA())t.push(['ad','👑 Админы']);
+  return t;
+}
+function cmdText(c){
+  if(!c)return '';
+  const kn={inv:'инвентарь',safe:'сейф',shelf:'витрина'};
+  switch(c.t){
+    case 'coins':return c.op==='set'?'баланс → '+money(c.v):(c.v>=0?'+':'−')+money(Math.abs(c.v));
+    case 'slots':return (c.n>=0?'+':'−')+Math.abs(c.n)+' ячеек ('+kn[c.k]+')';
+    case 'xp':return '+'+fmt(c.n)+' опыта';
+    case 'give':return 'выдал номер '+plateText(c.plate)+' ('+money(c.plate.v)+') → '+kn[c.loc];
+    case 'del':return 'удалил номер';
+    case 'move':return 'переместил номер → '+kn[c.loc];
+    case 'price':return 'цена номера → '+money(c.v);
+  }
+  return '';
+}
+const PERM_L={give:'Выдавать',take:'Забирать',video:'Видео',stats:'Онлайн'};
+let AD_D=null,AD_T=0;
+async function loadAdmins(){
+  const tok=++AD_T;
+  try{const d=await api('/adm/admins',{});if(tok!==AD_T)return;AD_D=d.ok?d:{error:1}}catch(e){AD_D={error:1}}
+  if(AD.tab==='ad'&&stack[stack.length-1]==='adm'){const b=$('adm-body'),sc=b.scrollTop;b.innerHTML=admAdmins();b.scrollTop=sc}
+}
+function admAdmins(){
+  const d=AD_D;
+  if(!d)return '<div class="empty" style="margin-top:20px">Загружаем…</div>';
+  if(d.error)return '<div class="empty" style="margin-top:20px">Не удалось загрузить</div>';
+  const nm=s=>String(s||'Игрок').replace(/</g,'&lt;');
+  return `<div class="hint" style="text-align:left">Назначай админов и выбирай, что им можно. Владелец (ты) может всё и защищён от изменений. Нового админа проще всего назначить из карточки игрока кнопкой «Назначить админом».</div>
+  <div class="adsr"><input class="ain" id="ad-newid" inputmode="numeric" placeholder="Telegram ID нового админа"><button class="btn" data-act="adm-add">Добавить</button></div>
+  <div class="sech">Админы (${d.admins.length})</div>`+
+  (d.admins.length?d.admins.map(a=>`<div class="adcard"><b>${nm(a.name)}</b> <span style="color:var(--mut);font-size:12.5px">ID ${a.id}</span>
+    <div class="chips adc" style="padding-top:10px;flex-wrap:wrap">${Object.keys(PERM_L).map(k=>`<button class="chip${a.perms[k]?' on':''}" data-pm="${a.id}:${k}">${PERM_L[k]}</button>`).join('')}</div>
+    <button class="btn g" data-adel="${a.id}" style="width:100%;color:#ff6b6b">Снять с должности</button></div>`).join(''):'<div class="hint">Админов пока нет</div>')+
+  `<div class="hint" style="text-align:left"><b>Выдавать</b> — выдавать деньги, ячейки, опыт и номера, перемещать номера. <b>Забирать</b> — уменьшать баланс и ячейки, удалять номера. «Установить» баланс и менять цену номера — нужны оба права. <b>Видео</b> — вкладка видео-номеров. <b>Онлайн</b> — статистика игроков. Админы не могут менять владельца.</div>
+  <div class="sech">Журнал действий</div>`+
+  (d.log.length?d.log.map(l=>`<div class="tkr"><div class="d"><b>${nm(l.aname)}</b> → ${nm(l.tname||l.target)}<br><span>${cmdText(l.c)} · ${ago(l.at)}</span></div></div>`).join(''):'<div class="hint">Пока пусто</div>');
 }
 function plateText(p){
   const l=p.l||'';
@@ -1502,29 +1551,34 @@ function admPlayer(){
   <span style="color:var(--mut);font-size:12.5px">${s?'Сохранение: '+ago(d.savedAt):'Сохранения ещё нет'}${d.pending?` · ждут применения: ${d.pending}`:''}</span></div>
   <div class="sech">Деньги</div>
   <input class="ain" id="ad-money" inputmode="numeric" placeholder="Сумма, ₽">
-  <div class="adb"><button class="btn" data-act="m+">Выдать</button><button class="btn g" data-act="m-">Забрать</button><button class="btn g" data-act="m=">Установить</button></div>
+  <div class="adb">${can('give')?'<button class="btn" data-act="m+">Выдать</button>':''}${can('take')?'<button class="btn g" data-act="m-">Забрать</button>':''}${can('give')&&can('take')?'<button class="btn g" data-act="m=">Установить</button>':''}</div>
   <div class="sech">Ячейки</div>
   <div class="chips adc">${[['inv','Инвентарь'],['safe','Сейф'],['shelf','Витрина']].map(([k,n])=>`<button class="chip${AD.slk===k?' on':''}" data-sk="${k}">${n}</button>`).join('')}</div>
   <input class="ain" id="ad-slot" inputmode="numeric" placeholder="Сколько ячеек добавить (можно с минусом)">
   <div class="adb"><button class="btn" data-act="slots">Применить</button></div>
-  <div class="sech">Опыт</div>
+  ${can('give')?`<div class="sech">Опыт</div>
   <input class="ain" id="ad-xp" inputmode="numeric" placeholder="Сколько опыта выдать">
   <div class="adb"><button class="btn" data-act="xp">Выдать опыт</button></div>
   <div class="sech">Выдать номер</div>
   ${edHTML('eg')}
   <div class="chips adc" style="padding-top:10px">${[['inv','В инвентарь'],['safe','В сейф'],['shelf','На витрину']].map(([k,n])=>`<button class="chip${AD.gloc===k?' on':''}" data-gl="${k}">${n}</button>`).join('')}</div>
-  <div class="adb"><button class="btn" data-act="give">Выдать номер</button></div>
+  <div class="adb"><button class="btn" data-act="give">Выдать номер</button></div>`:''}
+  ${isOwnerA()&&pl.id!==((tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.id)||0)?`<div class="adb"><button class="btn g" data-act="mkadm">👑 Назначить админом</button></div>`:''}
   <div class="sech">Номера игрока</div>
   <div class="chips adc">${[['safe','Сейф'],['inv','Инвентарь'],['shelf','Витрина']].map(([k,n])=>`<button class="chip${AD.ploc===k?' on':''}" data-pl="${k}">${n} · ${cnt[k]}</button>`).join('')}</div>
-  ${s?(list.length?list.map(p=>`<div class="tkr" data-plt="${p.id}" style="cursor:pointer;flex-wrap:wrap"><div class="d"><b>${plateText(p)}</b><br><span style="color:${R[p.r]?R[p.r].c:'#999'}">${R[p.r]?R[p.r].n:p.r}</span> <span>· ${money(p.v)}</span></div>${AD.psel===p.id?`<div style="width:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn g" data-mv="safe">В сейф</button><button class="btn g" data-mv="inv">В инвентарь</button><button class="btn g" data-mv="shelf">На витрину</button><button class="btn g" data-mv="del" style="color:#ff6b6b">Удалить</button><input class="ain" id="ad-price" inputmode="numeric" placeholder="Новая цена" style="flex:1;min-width:110px"><button class="btn" data-mv="price">Цена</button></div>`:''}</div>`).join('')+(cnt[AD.ploc]>60?`<div class="hint">Показаны 60 самых дорогих из ${cnt[AD.ploc]}</div>`:''):'<div class="hint">Здесь пусто</div>'):'<div class="hint">Данные появятся после первого сохранения игрока</div>'}
+  ${s?(list.length?list.map(p=>`<div class="tkr" data-plt="${p.id}" style="cursor:pointer;flex-wrap:wrap"><div class="d"><b>${plateText(p)}</b><br><span style="color:${R[p.r]?R[p.r].c:'#999'}">${R[p.r]?R[p.r].n:p.r}</span> <span>· ${money(p.v)}</span></div>${AD.psel===p.id?`<div style="width:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn g" data-mv="safe">В сейф</button><button class="btn g" data-mv="inv">В инвентарь</button><button class="btn g" data-mv="shelf">На витрину</button>${can('take')?'<button class="btn g" data-mv="del" style="color:#ff6b6b">Удалить</button>':''}${can('give')&&can('take')?'<input class="ain" id="ad-price" inputmode="numeric" placeholder="Новая цена" style="flex:1;min-width:110px"><button class="btn" data-mv="price">Цена</button>':''}</div>`:''}</div>`).join('')+(cnt[AD.ploc]>60?`<div class="hint">Показаны 60 самых дорогих из ${cnt[AD.ploc]}</div>`:''):'<div class="hint">Здесь пусто</div>'):'<div class="hint">Данные появятся после первого сохранения игрока</div>'}
   <div class="hint" style="margin-top:10px">Изменения применяются у игрока, когда он открывает игру (или в течение минуты, если игра уже открыта).</div>`;
 }
 function renderAdmin(){
   const b=$('adm-body');if(!b)return;
   if(!ADM){$('adm-tabs').innerHTML='';b.innerHTML='<div class="empty">Нет доступа</div>';return}
-  $('adm-tabs').innerHTML=[['st','📊 Онлайн'],['video','🎬 Видео'],['pl','👥 Игроки']].map(([k,n])=>`<button class="chip${AD.tab===k?' on':''}" data-at="${k}">${n}</button>`).join('');
+  const tabs=admTabs();
+  if(!tabs.length){$('adm-tabs').innerHTML='';b.innerHTML='<div class="empty">Нет прав доступа</div>';return}
+  if(!tabs.some(t=>t[0]===AD.tab))AD.tab=tabs[0][0];
+  $('adm-tabs').innerHTML=tabs.map(([k,n])=>`<button class="chip${AD.tab===k?' on':''}" data-at="${k}">${n}</button>`).join('');
   const sc=b.scrollTop;
-  if(AD.tab==='st'){b.innerHTML=admStats();loadStats()}
+  if(AD.tab==='ad'){b.innerHTML=admAdmins();loadAdmins()}
+  else if(AD.tab==='st'){b.innerHTML=admStats();loadStats()}
   else if(AD.tab==='video'){b.innerHTML=admVideo();edPrev('ev')}
   else if(AD.pid){b.innerHTML=admPlayer();if(AD.pdata&&!AD.pdata.error)edPrev('eg')}
   else{b.innerHTML=admList();if(AD.list===null)loadPlayers()}
@@ -1533,7 +1587,7 @@ function renderAdmin(){
 async function admSend(cmds){
   try{
     const d=await api('/adm/cmd',{target:AD.pid,cmds});
-    if(!d.ok){toast('Ошибка: проверь данные');return false}
+    if(!d.ok){toast(d.error==='no_permission'?'У тебя нет прав на это действие':d.error==='owner_protected'?'Этого игрока менять нельзя':'Ошибка: проверь данные');return false}
     toast('Отправлено ✓');hap('success');
     if(AD.pid===(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.id)){setTimeout(pollInbox,700)}
     setTimeout(()=>{if(AD.pid&&stack[stack.length-1]==='adm')openPlayer(AD.pid)},2500);
@@ -1553,6 +1607,18 @@ $('s-adm').addEventListener('click',async e=>{
   if(x=c('[data-at]')){AD.tab=x.dataset.at;renderAdmin();return}
   if(x=c('[data-ec]')){const k=x.dataset.ec,e2=AD[k];e2.cc=x.dataset.v;if(edPlate(e2).err)Object.assign(e2,EDEF[e2.cc]);renderAdmin();return}
   if(x=c('[data-er]')){AD[x.dataset.er].r=x.dataset.v;renderAdmin();return}
+  if(x=c('[data-pm]')){
+    const[id,k]=x.dataset.pm.split(':'),a=AD_D&&AD_D.admins.find(a=>String(a.id)===id);if(!a)return;
+    const perms=Object.assign({},a.perms);perms[k]=!perms[k];
+    const d=await api('/adm/admin_set',{id:+id,perms}).catch(()=>null);
+    if(d&&d.ok){a.perms=perms;renderAdmin();toast('Права обновлены')}else toast('Не удалось сохранить');
+    return;
+  }
+  if(x=c('[data-adel]')){
+    const d=await api('/adm/admin_del',{id:+x.dataset.adel}).catch(()=>null);
+    if(d&&d.ok){toast('Админ снят');AD_D=null;renderAdmin()}else toast('Не удалось');
+    return;
+  }
   if(x=c('[data-adq]')){S.adm.q.splice(+x.dataset.adq,1);save();renderAdmin();return}
   if(c('#adv-add')){
     const{p,err}=edPlate(AD.ev);if(err){toast(err);return}
@@ -1573,12 +1639,24 @@ $('s-adm').addEventListener('click',async e=>{
     AD.psel=null;renderAdmin();return;
   }
   if(x=c('[data-plt]')){AD.psel=AD.psel===x.dataset.plt?null:x.dataset.plt;renderAdmin();return}
-  if(x=c('[data-pid]')){AD.tab='pl';openPlayer(+x.dataset.pid);return}
+  if(x=c('[data-pid]')){if(!(can('give')||can('take')))return;AD.tab='pl';openPlayer(+x.dataset.pid);return}
   if(x=c('[data-act]')){
     const a=x.dataset.act;
     if(a==='m+'||a==='m-'||a==='m='){const v=digitsOf('ad-money');if(!v&&a!=='m='){toast('Укажи сумму');return}await admSend([{t:'coins',op:a==='m='?'set':'add',v:a==='m-'?-v:v}]);return}
     if(a==='slots'){const raw=String(($('ad-slot')||{}).value||'').trim(),n=Math.round(+raw.replace(/[^\d-]/g,''))||0;if(!n){toast('Укажи число ячеек');return}await admSend([{t:'slots',k:AD.slk,n}]);return}
     if(a==='xp'){const n=digitsOf('ad-xp');if(!n){toast('Укажи опыт');return}await admSend([{t:'xp',n}]);return}
+    if(a==='adm-add'){
+      const id=digitsOf('ad-newid');if(id<1000){toast('Укажи Telegram ID');return}
+      const d=await api('/adm/admin_set',{id,perms:{give:true,take:false,video:false,stats:true}}).catch(()=>null);
+      if(d&&d.ok){toast('Админ добавлен — настрой права');AD_D=null;renderAdmin()}else toast(d&&d.error==='bad_id'?'Этот ID нельзя назначить':'Не удалось');
+      return;
+    }
+    if(a==='mkadm'){
+      const id=AD.pid;await loadAdmins();
+      if(AD_D&&AD_D.admins&&AD_D.admins.some(x=>x.id===id)){toast('Уже админ — права на вкладке «Админы»')}
+      else{const d=await api('/adm/admin_set',{id,perms:{give:true,take:false,video:false,stats:true}}).catch(()=>null);if(!(d&&d.ok)){toast('Не удалось назначить');return}toast('Назначен админом — настрой права');AD_D=null}
+      AD.tab='ad';AD.pid=null;renderAdmin();return;
+    }
     if(a==='give'){const{p,err}=edPlate(AD.eg);if(err){toast(err);return}await admSend([{t:'give',plate:p,loc:AD.gloc}]);return}
   }
 });
