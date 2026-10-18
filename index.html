@@ -2203,7 +2203,7 @@ setInterval(()=>{try{achCheck()}catch(e){}},4000);
 
 /* ---------- Shop (Telegram Stars) ---------- */
 const SHOP_FB=[{id:'legend1',title:'Легендарный номер',stars:50,desc:'Следующая генерация гарантированно выдаст случайный легендарный номер. Генерация бесплатная.'},{id:'custom1',title:'Именной номер',stars:100,desc:'Номер с твоим словом: любое имя или надпись. Особая редкость «Именной», выбить в генераторе нельзя.'}];
-let SHOP_IT=null,SHOP_BUSY=false;
+let SHOP_IT=null,SHOP_BUSY=false,SHOP_MODE='manual',SHOP_CONTACT='';
 const CU={cc:'ru',w:''};let PROMO_V='',PROMO_BUSY=false;
 const NM_V=10000000,BAD_RX=/хуй|хуе|хуя|хуи|пизд|ёб|еб[аилуя]н|ебл|ебат|бля|сука|гонд|пидор|пидр|мудак|залуп|шлюх|нахуй|fuck|shit|bitch|dick|cunt/i;
 function custCheck(){
@@ -2221,7 +2221,7 @@ function renderShop(){
   const body=$('shop-body');if(!body)return;
   const items=SHOP_IT||SHOP_FB;
   const own={legend1:S.lg|0,custom1:S.cn|0};
-  body.innerHTML=(HAS_LB()?`<div class="adcard"><b>🎟 Промокод</b><div class="adsr"><input class="ain" id="promo-in" autocapitalize="characters" maxlength="20" placeholder="Введи промокод" value="${esc(PROMO_V)}"><button class="btn" id="promo-go">Активировать</button></div></div>`:'')+`<div class="hint" style="text-align:left">Покупки за Telegram Stars ⭐. Оплата происходит в самом Telegram, товар начисляется автоматически.</div>`+
+  body.innerHTML=(HAS_LB()?`<div class="adcard"><b>🎟 Промокод</b><div class="adsr"><input class="ain" id="promo-in" autocapitalize="characters" maxlength="20" placeholder="Введи промокод" value="${esc(PROMO_V)}"><button class="btn" id="promo-go">Активировать</button></div></div>`:'')+(SHOP_MODE==='stars'?`<div class="hint" style="text-align:left">Покупки за Telegram Stars ⭐. Оплата происходит в самом Telegram, товар начисляется автоматически.</div>`:`<div class="hint" style="text-align:left"><b>Как купить:</b> нажми «Купить». Откроется личный чат с владельцем игры с готовым сообщением. Отправь ему подарок в Telegram на указанную сумму в ⭐ и подтверди сообщением. Товар будет выдан вручную на твой аккаунт.</div>`)+
   items.map(it=>`<div class="shc"><h3>${it.title}</h3>${own[it.id]?`<div class="own">У тебя: ${own[it.id]}</div>`:''}<div>${it.desc}</div><button class="btn" data-buy="${it.id}" style="width:100%;margin-top:10px">Купить за ${it.stars} ⭐</button></div>`).join('')+
   ((S.cn|0)>0?`<div class="sech">Создать именной номер (осталось: ${S.cn})</div><div class="adcard">
    <div class="chips adc">${['ru','kz','by'].map(c=>`<button class="chip${CU.cc===c?' on':''}" data-cuc="${c}">${CC[c].name}</button>`).join('')}</div>
@@ -2233,9 +2233,17 @@ function renderShop(){
 }
 async function loadShop(){
   if(!HAS_LB())return;
-  try{const d=await api('/shop/items',{});if(d.ok&&d.items&&d.items.length){SHOP_IT=d.items;if(stack[stack.length-1]==='shop'&&!document.activeElement.matches('input'))renderShop()}}catch(e){}
+  try{const d=await api('/shop/items',{});if(d.ok&&d.items&&d.items.length){SHOP_IT=d.items;SHOP_MODE=d.mode||'manual';SHOP_CONTACT=d.contact||'';if(stack[stack.length-1]==='shop'&&!document.activeElement.matches('input'))renderShop()}}catch(e){}
 }
 async function buyItem(id){
+  if(SHOP_MODE!=='stars'){
+    const it=(SHOP_IT||SHOP_FB).find(x=>x.id===id);if(!it)return;
+    if(!SHOP_CONTACT){toast('Контакт для покупки пока не настроен');return}
+    const uid=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user?tg.initDataUnsafe.user.id:'';
+    const url='https://t.me/'+SHOP_CONTACT+'?text='+encodeURIComponent(`Привет! Хочу купить «${it.title}» за ${it.stars} ⭐. Мой ID в игре: ${uid}`);
+    try{tg.openTelegramLink(url)}catch(e){window.open(url,'_blank')}
+    return;
+  }
   if(SHOP_BUSY)return;
   if(!HAS_LB()||!tg.openInvoice){toast('Покупки доступны только в Telegram');return}
   SHOP_BUSY=true;
