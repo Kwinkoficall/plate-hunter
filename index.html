@@ -759,6 +759,16 @@ body.mn .qtabs button.on{background:rgba(var(--nxr),.12);color:var(--nx);box-sha
 .tkr.dn{opacity:.55}.tkr .rwt{color:var(--mut);font-weight:500}.tkr.ok .rwt{color:var(--nx,#3ddc84)}
 .qp{flex:none;color:var(--mut);font-size:13px;white-space:nowrap}
 .tkr.bonus{border-style:dashed}
+
+/* генератор на невысоких экранах: компактные кнопки, чтобы справка о номере не схлопывалась, подсветка не обрезалась */
+body.mn .stagebox{overflow:visible}
+body.mn #s-gen #info{min-height:78px}
+body.mn .gshop{gap:6px;padding:0 12px 6px}
+body.mn .gshop button{padding:7px 4px;font-size:12px;border-radius:12px;flex:1 1 0;min-width:0}
+body.mn .gshop button small{display:none}
+body.mn .gmeta{flex-wrap:nowrap;gap:5px;padding:0 10px 6px}
+body.mn .gmeta button,body.mn .gmeta .gmc{padding:5px 8px;font-size:11.5px;white-space:nowrap;flex:0 1 auto}
+@media (max-height:860px){body.mn #foot{display:none}body.mn #s-gen .acts{margin-bottom:6px}}
 </style>
 </head>
 <body class="mn">
@@ -2185,8 +2195,8 @@ function gen(){
   S.st.gen++;
   if(vd){ // номер для видео: показывается как обычная выдача, но в инвентарь не попадает
     const fp=Object.assign({},vd,{id:'v'+Date.now().toString(36),t:Date.now()});
-    S.last=null;luckGen(false);saveSoon();renderTop();showResult(fp);$('acts').style.visibility='hidden';
-    hapQ(ridx(fp.r)>=4?'success':ridx(fp.r)>=3?'h':'l');return;
+    S.last=null;luckGen(false);saveSoon();renderTop();hwDrop(fp.r);
+    reelPlate(fp,()=>{showResult(fp,false);$('acts').style.visibility='hidden';hapQ(ridx(fp.r)>=4?'success':ridx(fp.r)>=3?'h':'l')});return;
   }
   const cc=mg?(S.sel==='by'?'by':'ru'):S.sel==='any'?pick(['kz','ru','by','ua','kg']):S.sel,tp=pickType(cc);
   let r,p;
