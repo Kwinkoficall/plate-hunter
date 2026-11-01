@@ -2113,7 +2113,7 @@ function reelBuild(html,cc,f){
 const REEL_F=[1,1,1.2,1.45,1.75,2.1,2.5]; // множитель длительности прокрута по редкости
 function reelFinalFx(p){
   const top=ridx(p.r);
-  if(top>=4&&HAS_LB())api('/drop',{r:p.r,v:p.v}).catch(()=>{});
+  if(top>=4&&!p.vid&&HAS_LB())api('/drop',{r:p.r,v:p.v}).catch(()=>{});
   if(top>=3){sfx('slam');sparks(p.r);sfx('fan',top);if(top>=4){const st=$('stage');st.classList.remove('shake');void st.offsetWidth;st.classList.add('shake')}}
   else if(top>=1)sfx('stamp',top);
 }
@@ -2194,7 +2194,7 @@ function gen(){
   const vd=admDue();
   S.st.gen++;
   if(vd){ // номер для видео: показывается как обычная выдача, но в инвентарь не попадает
-    const fp=Object.assign({},vd,{id:'v'+Date.now().toString(36),t:Date.now()});
+    const fp=Object.assign({},vd,{id:'v'+Date.now().toString(36),t:Date.now(),vid:1});
     S.last=null;luckGen(false);saveSoon();renderTop();hwDrop(fp.r);
     reelPlate(fp,()=>{showResult(fp,false);$('acts').style.visibility='hidden';hapQ(ridx(fp.r)>=4?'success':ridx(fp.r)>=3?'h':'l')});return;
   }
