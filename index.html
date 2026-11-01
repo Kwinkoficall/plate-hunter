@@ -762,7 +762,10 @@ body.mn .qtabs button.on{background:rgba(var(--nxr),.12);color:var(--nx);box-sha
 
 /* генератор на невысоких экранах: компактные кнопки, чтобы справка о номере не схлопывалась, подсветка не обрезалась */
 body.mn .stagebox{overflow:visible}
-body.mn #s-gen #info{min-height:78px}
+body.mn #s-gen #info{min-height:0}
+body.mn #s-gen .stagebox{min-height:0}
+@media (max-height:780px){body.mn #info .ifact{display:none}body.mn #info{font-size:13px;line-height:1.3}body.mn #info div{margin-bottom:2px}}
+@media (max-height:640px){body.mn #info div:nth-child(n+4){display:none}}
 body.mn .gshop{gap:6px;padding:0 12px 6px}
 body.mn .gshop button{padding:7px 4px;font-size:12px;border-radius:12px;flex:1 1 0;min-width:0}
 body.mn .gshop button small{display:none}
