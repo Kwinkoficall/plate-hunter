@@ -766,7 +766,7 @@ body.mn #s-gen #info{min-height:78px}
 body.mn .gshop{gap:6px;padding:0 12px 6px}
 body.mn .gshop button{padding:7px 4px;font-size:12px;border-radius:12px;flex:1 1 0;min-width:0}
 body.mn .gshop button small{display:none}
-body.mn .gmeta{flex-wrap:nowrap;gap:5px;padding:0 10px 6px}
+body.mn .gmeta{flex-wrap:wrap;justify-content:center;gap:5px;padding:0 10px 6px}
 body.mn .gmeta button,body.mn .gmeta .gmc{padding:5px 8px;font-size:11.5px;white-space:nowrap;flex:0 1 auto}
 @media (max-height:860px){body.mn #foot{display:none}body.mn #s-gen .acts{margin-bottom:6px}}
 </style>
@@ -1357,7 +1357,7 @@ function ecoGenRange(cc,lo,hi){for(let t=0;t<60000;t++){const p=ecoUniform(cc),v
 /* ===== правила экономики ===== */
 const TAL_BOOST={rare:1.15,epic:1.35,legendary:2,mythic:2.5,divine:3.5}; // множитель шанса «этой редкости и выше»
 const FART_B={rare:2,epic:4,legendary:2},FART_N=50;                       // фарт: множитель шанса конкретной редкости
-const EN_MAX=50,EN_REGEN=60000;                                           // молнии: максимум и восстановление (1 в минуту)
+const EN_MAX=50,EN_START=20,EN_REGEN=60000;                                           // молнии: максимум и восстановление (1 в минуту)
 const PACKS=[10,50,200],PACK_MARK=1.1;                                    // пачки молний за рубли
 const E_SELL={common:1728,uncommon:12504,rare:100820,epic:549129,legendary:4973198,mythic:16288762,divine:74096823}; // средняя выручка у перекупа
 const PK_WALLET=55e6;                                                     // сколько перекуп берёт из гаража в сутки
@@ -1387,7 +1387,7 @@ function ecoSample(tp,k){const cc=tp.slice(0,2),p=ecoGenR(cc,k);p.r=rate(p);p.v=
 // молнии
 function enTick(){
   const n=Date.now();
-  if(S.en==null){S.en=EN_MAX;S.enT=n}
+  if(S.en==null){S.en=EN_START;S.enT=n}
   if(S.en>=EN_MAX){S.en=Math.max(S.en,EN_MAX);S.enT=n;return}
   const k=Math.floor((n-(S.enT||n))/EN_REGEN);
   if(k>0){S.en=Math.min(EN_MAX,S.en+k);S.enT=S.en>=EN_MAX?n:S.enT+k*EN_REGEN}
@@ -1437,8 +1437,8 @@ function renderEn(){
   const m=$('gmeta');if(!m)return;
   const g=luckG(),h=ecoHour(),chips=[];
   chips.push(`<span class="gmc"${g.total>1?' data-on="1"':''}>Удача ×${g.total.toFixed(2)}</span>`);
-  if(h.on)chips.push(`<span class="gmc" data-on="1">Счастливый час · ${mmss(h.left)}</span>`);
-  else if(h.startsIn>0&&h.startsIn<36e5*3)chips.push(`<span class="gmc">Час удачи в ${String(h.h).padStart(2,'0')}:00</span>`);
+  if(h.on)chips.push(`<span class="gmc" data-on="1">Час удачи ${mmss(h.left)}</span>`);
+  else if(h.startsIn>0&&h.startsIn<36e5*3)chips.push(`<span class="gmc">Час удачи ${String(h.h).padStart(2,'0')}:00</span>`);
   if((S.fart|0)>0&&!h.on)chips.push(`<span class="gmc" data-on="1">Фарт × ${S.fart}</span>`);
   chips.push(`<button data-gm="tal">Талисманы ${talList().length}/${talSlots()}</button><button data-gm="packs">Пачки ⚡</button><button data-gm="chances">Шансы</button>`);
   m.innerHTML=chips.join('');
@@ -3140,7 +3140,7 @@ setInterval(()=>{if($('s-menu').classList.contains('on'))menuBadges()},30000);
 
 /* ---------- Уровни ---------- */
 const MAXLV=50;
-const lvNeed=L=>Math.round(20*Math.pow(L,1.5)/5)*5;               // опыта от уровня L до L+1
+const lvNeed=L=>Math.round(60*Math.pow(L,1.5)/5)*5;               // опыта от уровня L до L+1
 const LV_CUM=[0,0];for(let L=1;L<MAXLV;L++)LV_CUM[L+1]=LV_CUM[L]+lvNeed(L); // всего опыта для уровня L
 const lvOf=xp=>{let L=1;while(L<MAXLV&&xp>=LV_CUM[L+1])L++;return L};
 const lvCoins=L=>Math.max(500,Math.round(L*L*15/500)*500);                     // награда деньгами за достижение уровня
@@ -3231,7 +3231,7 @@ function taskProg(k,n=1){ensureDay();let ch=false;S.dt.t.forEach(t=>{if(t.k===k&
 const wkey=()=>{const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
 const RWT=r=>{const o=[];if(r.e)o.push('+'+r.e+' молний');if(r.gr)o.push('гарант редкого'+(r.gr>1?' ×'+r.gr:''));if(r.ge)o.push('гарант эпика'+(r.ge>1?' ×'+r.ge:''));if(r.gd)o.push('золотая крутка'+(r.gd>1?' ×'+r.gd:''));if(r.c)o.push('+'+moneyS(r.c));if(r.f)o.push('фарт ×'+r.f);return o.join(' · ')};
 function giveRw(r){
-  if(r.e){enTick();S.en=(S.en==null?EN_MAX:S.en)+r.e}
+  if(r.e){enTick();S.en=(S.en==null?EN_START:S.en)+r.e}
   ['gr','ge','gd'].forEach(k=>{if(r[k])S[k]=(S[k]|0)+r[k]});
   if(r.f)S.fart=(S.fart|0)+r.f;
   if(r.c){S.coins+=r.c;S.st.earned+=r.c}
